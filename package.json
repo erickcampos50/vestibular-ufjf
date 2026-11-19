@@ -1,0 +1,13 @@
+{
+  "name": "vestibular-ufjf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Consulta de candidatos das listas de espera do PISM/SiSU da UFJF",
+  "scripts": {
+    "dados": "node scripts/scrape-cdara.mjs data/candidatos.json && node scripts/preparar-dados.mjs",
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "preview": "npm --prefix web run preview"
+  }
+}
