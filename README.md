@@ -36,9 +36,12 @@ após clonar o repositório para gerar os arquivos locais.
    selecione **GitHub Actions** como fonte. Para repositórios privados, confira a
    disponibilidade do Pages no plano da organização.
 2. O workflow `.github/workflows/pages.yml` é executado em pushes para `main` ou
-   `master`, ou manualmente em **Actions → Publicar no GitHub Pages → Run workflow**.
+   `master`, diariamente às **09:00 UTC** (06:00 no horário de Brasília, UTC-3),
+   ou manualmente em **Actions → Publicar no GitHub Pages → Run workflow**.
    Ele instala as dependências, extrai as listas, gera o arquivo gzip e publica o build.
-   Uma atualização dos dados exige uma nova execução; não há agendamento automático.
+   O rodapé mostra o horário de conclusão da extração publicada, no fuso de Brasília.
+   O agendamento usa a branch padrão do repositório e pode sofrer atrasos no GitHub;
+   em repositórios públicos, o GitHub pode desativá-lo após 60 dias sem atividade.
 3. A URL típica é `https://<usuario>.github.io/<repositorio>/`. Para repositórios
    `<usuario>.github.io`, o site fica na raiz. O caminho dos assets é configurado
    automaticamente pelo workflow. Para testar outro caminho localmente, defina a
