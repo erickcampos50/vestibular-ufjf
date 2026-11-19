@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Empty, Input, Segmented, Skeleton } from 'antd';
+import { Alert, Empty, Input, Segmented, Select, Skeleton } from 'antd';
 import { ArrowRightOutlined, SearchOutlined, ExportOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -26,6 +26,16 @@ const fmtPontos = (valor: number) =>
 
 const fmtData = (iso: string | null) => (iso ? dayjs(iso).format('DD/MM/YYYY') : null);
 
+const fmtAtualizacao = (iso: string) => {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return null;
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(data).replace(',', ' às');
+};
+
 const plural = (n: number, singular: string, plural_: string) =>
   `${n.toLocaleString('pt-BR')} ${n === 1 ? singular : plural_}`;
 
@@ -34,6 +44,8 @@ function App() {
   const [erro, setErro] = useState<string | null>(null);
   const [consulta, setConsulta] = useState('');
   const [edicao, setEdicao] = useState('todas');
+  const [campus, setCampus] = useState('todos');
+  const [cursos, setCursos] = useState<string[]>([]);
 
   useEffect(() => {
     let vivo = true;
@@ -60,6 +72,17 @@ function App() {
     [snapshot],
   );
 
+  const opcoesFiltros = useMemo(() => {
+    const candidatos = snapshot?.candidatos ?? [];
+    const ordenar = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
+    return {
+      campi: [...new Set(candidatos.map((c) => c.ca).filter(Boolean))].sort(ordenar),
+      cursos: [...new Set(candidatos.map((c) => c.c).filter(Boolean))]
+        .sort(ordenar)
+        .map((curso) => ({ label: curso, value: curso })),
+    };
+  }, [snapshot]);
+
   const termo = normalizar(consulta);
   const buscou = termo.length >= MIN_LETRAS;
   const tokens = useMemo(() => (buscou ? termo.split(' ') : []), [buscou, termo]);
@@ -70,7 +93,10 @@ function App() {
     const achados = indice
       .filter(
         ({ c, nome }) =>
-          (edicao === 'todas' || c.e === edicao) && tokens.every((t) => nome.includes(t)),
+          (edicao === 'todas' || c.e === edicao) &&
+          (campus === 'todos' || c.ca === campus) &&
+          (cursos.length === 0 || cursos.includes(c.c)) &&
+          tokens.every((t) => nome.includes(t)),
       )
       .map(({ c }) => c);
 
@@ -84,7 +110,7 @@ function App() {
         a.g.localeCompare(b.g, 'pt-BR') ||
         (a.cl ?? 0) - (b.cl ?? 0),
     );
-  }, [buscou, edicao, indice, snapshot, tokens]);
+  }, [buscou, edicao, campus, cursos, indice, snapshot, tokens]);
 
   const visiveis = resultados.slice(0, LIMITE_EXIBICAO);
 
@@ -133,28 +159,93 @@ function App() {
             UFJF para os processos seletivos de <strong>2026</strong>.
           </p>
 
+          <div className="filtros">
+            <div className="filtros-container">
+            <details className="filtros-uteis">
+              <summary>
+                <span>Filtros úteis</span>
+                {(edicao !== 'todas' || campus !== 'todos' || cursos.length > 0) && (
+                  <span className="filtros-ativos">
+                    {(edicao !== 'todas' ? 1 : 0) + (campus !== 'todos' ? 1 : 0) + cursos.length} ativo(s)
+                  </span>
+                )}
+              </summary>
+              <div className="filtros-uteis-conteudo">
+                <div className="filtro-grupo">
+                  <span className="filtro-rotulo" id="rotulo-processo">Processo seletivo</span>
+                  <Segmented
+                    aria-labelledby="rotulo-processo"
+                    options={OPCOES_EDICAO}
+                    value={edicao}
+                    onChange={(valor) => setEdicao(String(valor))}
+                  />
+                </div>
+                <div className="filtro-grupo">
+                  <span className="filtro-rotulo" id="rotulo-campus">Campus</span>
+                  <Segmented
+                    aria-labelledby="rotulo-campus"
+                    options={[
+                      { label: 'Todos', value: 'todos' },
+                      ...opcoesFiltros.campi.map((nome) => ({
+                        label: nome === 'GOVERNADOR VALADARES' ? 'Gov. Valadares' : nome === 'JUIZ DE FORA' ? 'Juiz de Fora' : nome,
+                        value: nome,
+                      })),
+                    ]}
+                    value={campus}
+                    onChange={(valor) => setCampus(String(valor))}
+                    disabled={!snapshot}
+                  />
+                </div>
+                <div className="filtro-grupo">
+                  <label className="filtro-rotulo" htmlFor="filtro-cursos">Cursos</label>
+                  <Select
+                    id="filtro-cursos"
+                    className="filtro-cursos"
+                    mode="multiple"
+                    size="large"
+                    allowClear
+                    disabled={!snapshot}
+                    placeholder="Digite e selecione um ou mais cursos"
+                    value={cursos}
+                    onChange={setCursos}
+                    options={opcoesFiltros.cursos}
+                    showSearch={{
+                      filterOption: (texto, opcao) =>
+                        normalizar(String(opcao?.label ?? '')).includes(normalizar(texto)),
+                    }}
+                    notFoundContent="Nenhum curso encontrado"
+                  />
+                </div>
+              </div>
+            </details>
+            <button
+              type="button"
+              className="filtros-limpar"
+              onClick={() => {
+                setEdicao('todas');
+                setCampus('todos');
+                setCursos([]);
+              }}
+              disabled={edicao === 'todas' && campus === 'todos' && cursos.length === 0}
+            >
+              Limpar filtros
+            </button>
+            </div>
+          </div>
           <Input
             className="campo"
             size="large"
             prefix={<SearchOutlined className="campo-icone" />}
-            placeholder="Digite seu nome completo"
+            placeholder="Digite seu nome e veja os resultados"
             value={consulta}
             onChange={(e) => setConsulta(e.target.value)}
             allowClear
             autoFocus
             aria-label="Nome do candidato"
           />
-
-          <div className="filtros">
-            <Segmented
-              options={OPCOES_EDICAO}
-              value={edicao}
-              onChange={(valor) => setEdicao(String(valor))}
-            />
             {snapshot && (
               <span className="contagem-base">{plural(snapshot.total, 'registro', 'registros')}</span>
             )}
-          </div>
         </section>
 
         <section className="painel" aria-live="polite">
@@ -194,7 +285,7 @@ function App() {
                 <span>
                   Nenhum candidato encontrado para <strong>“{consulta.trim()}”</strong>.
                   <br />
-                  Confira a grafia ou tente apenas parte do nome.
+                  Confira a grafia, tente parte do nome ou ajuste os filtros.
                 </span>
               }
             />
@@ -243,7 +334,9 @@ function App() {
                               <span className={`situacao ${c.cv ? 'situacao-convocado' : emEspera ? 'situacao-espera' : 'situacao-outra'}`}>
                                 {situacao}
                               </span>
-                              {c.cv && data && <span className="item-data">Edital de {data}</span>}
+                              <span className="item-data">
+                                {c.cv && data ? `Edital de ${data}` : c.cv ? 'Data do edital não informada' : 'Nenhum edital de convocação informado'}
+                              </span>
                             </div>
                             <div className="item-corpo">
                               <h3 className="item-nome">{c.n}</h3>
@@ -275,11 +368,18 @@ function App() {
 
       <footer className="rodape">
         <p>
-          Dados públicos extraídos de{' '}
+          Dados públicos de{' '}
           <a href="https://www2.ufjf.br/cdara/" target="_blank" rel="noreferrer">
             www2.ufjf.br/cdara
           </a>
-          {snapshot && <> em {dayjs(snapshot.geradoEm).format('DD/MM/YYYY [às] HH:mm')}</>}.
+          .
+        </p>
+        <p>
+          {snapshot && fmtAtualizacao(snapshot.geradoEm) ? (
+            <>Última atualização dos dados: <time dateTime={snapshot.geradoEm}>{fmtAtualizacao(snapshot.geradoEm)}</time> (horário de Brasília).</>
+          ) : (
+            <>Horário da última atualização indisponível.</>
+          )}
         </p>
         <p>
           Consulta apenas informativa — nenhum CPF é exibido. A pré-matrícula é feita no SIGA.
