@@ -11,6 +11,7 @@ Página minimalista de consulta: o candidato digita o nome e vê a classificaç�
 nas listas de espera de **PISM 2026**, **SiSU 2026** e **SiSU Mais 2026**.
 
 ```bash
+npm ci --prefix web # instala as dependências
 npm run dados   # extrai as listas do CDARA (~75 s) e gera o snapshot do front
 npm run dev     # http://localhost:5173
 npm run build   # build de produção em web/dist
@@ -22,12 +23,35 @@ npm run build   # build de produção em web/dist
 | `scripts/preparar-dados.mjs` | gera a versão do snapshot consumida pelo front (sem CPF) |
 | `data/candidatos.json` | snapshot bruto (32.826 registros, ~13 MB) |
 | `web/` | React 19 + Vite + Ant Design 6 |
-| `web/public/data/candidatos.json` | snapshot público (~12 MB), incluindo os links às listas oficiais |
+| `web/public/data/candidatos.json.gz` | snapshot público compactado, incluindo os links às listas oficiais |
 
 O front **não consulta a UFJF em tempo de busca**: ele carrega o snapshot e filtra em
 memória (busca sem acentos, por tokens do nome). A atualização dos dados é um job.
 Os snapshots não são versionados por conterem dados pessoais: execute `npm run dados`
 após clonar o repositório para gerar os arquivos locais.
+
+## Publicação no GitHub Pages
+
+1. Envie o repositório ao GitHub e, em **Settings → Pages → Build and deployment**,
+   selecione **GitHub Actions** como fonte. Para repositórios privados, confira a
+   disponibilidade do Pages no plano da organização.
+2. O workflow `.github/workflows/pages.yml` é executado em pushes para `main` ou
+   `master`, ou manualmente em **Actions → Publicar no GitHub Pages → Run workflow**.
+   Ele instala as dependências, extrai as listas, gera o arquivo gzip e publica o build.
+   Uma atualização dos dados exige uma nova execução; não há agendamento automático.
+3. A URL típica é `https://<usuario>.github.io/<repositorio>/`. Para repositórios
+   `<usuario>.github.io`, o site fica na raiz. O caminho dos assets é configurado
+   automaticamente pelo workflow. Para testar outro caminho localmente, defina a
+   variável `BASE_PATH` antes de executar `npm run build` (ex.: `/repositorio/`).
+
+Cada execução da publicação consulta aproximadamente 774 listas na UFJF. A extração
+falha se houver erros, evitando publicar uma base parcialmente coletada; a publicação
+anterior permanece disponível. O arquivo gzip é público e pode ser baixado e
+descompactado por qualquer visitante: ele inclui nomes, notas, classificações e
+situações, mesmo sem CPF. Antes de publicar, avalie a finalidade, necessidade,
+retenção e demais requisitos de proteção de dados com a UFJF. `noindex` não impede
+acesso ao arquivo nem substitui controle de acesso. GitHub Pages é estático e não
+oferece autenticação de acesso aos dados.
 
 ## Resumo do que foi descoberto
 

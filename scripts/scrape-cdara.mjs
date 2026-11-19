@@ -198,6 +198,7 @@ const t0 = Date.now();
 for (const ed of EDICOES) {
   const html = await buscar(ed.url);
   const cursos = parseCursos(html, ed.url);
+  if (!cursos.length) throw new Error(`${ed.rotulo}: índice de cursos vazio ou não reconhecido; extração cancelada.`);
   const anos = [...new Set(cursos.map((c) => c.query.get('ano')))];
   console.log(`\n${ed.rotulo}: ${cursos.length} linhas curso×grupo | ano=${anos.join(',')}`);
   edicoes.push({ id: ed.id, processo: ed.processo, rotulo: ed.rotulo, ano: Number(anos[0]) || null, listaUrl: ed.url });
@@ -250,15 +251,15 @@ const payload = {
   candidatos,
 };
 
+if (erros.length || !candidatos.length) {
+  console.error(`Extração incompleta (${erros.length} falhas); snapshot anterior preservado.`);
+  for (const e of erros.slice(0, 10)) console.error(e.erro, e.url);
+  process.exit(1);
+}
+
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(payload), 'utf8');
 
 const kb = (fs.statSync(OUT).size / 1024).toFixed(0);
 console.log(`\n✓ ${candidatos.length} candidatos de ${edicoes.length} edições`);
 console.log(`✓ ${OUT} (${kb} KB) em ${((Date.now() - t0) / 1000).toFixed(0)}s`);
-if (erros.length) {
-  console.log(`⚠ ${erros.length} falhas:`);
-  for (const e of erros.slice(0, 10)) console.log('   ', e.erro, e.url);
-  fs.writeFileSync(OUT + '.erros.json', JSON.stringify(erros, null, 2));
-  process.exitCode = 1;
-}
