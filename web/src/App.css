@@ -413,6 +413,10 @@
 .grupo-topo a { padding: 10px 0; }
 .resumo, .convite { font-size: 16px; }
 .resumo-aviso { font-size: 14px; color: #536275; }
+.ordenacao { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 28px; }
+.ordenacao label { font-size: 17px; font-weight: 600; color: #344054; }
+.ordenacao-select { flex: 1 1 210px; min-width: 0; max-width: 420px; }
+.ordenacao p { flex-basis: 100%; margin: 0; color: #475467; font-size: 14px; }
 .itens { gap: 16px; }
 .item {
   display: flex;
@@ -425,7 +429,8 @@
 }
 .item:hover { color: var(--ink); border-color: var(--ufjf); }
 .item:focus-visible { outline: 3px solid var(--ufjf); outline-offset: 3px; }
-.item-lado { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; }
+.item-cabecalho { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; width: 100%; }
+.item-lado { flex: 1 1 auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
 .situacao {
   display: inline-block;
   padding: 8px 14px;
@@ -443,11 +448,18 @@
 .item-curso { margin-bottom: 12px; font-size: 16px; line-height: 1.5; color: #475467; }
 .item-meta { gap: 8px; font-size: 15px; color: #344054; }
 .item-meta span { padding: 6px 10px; border-radius: 7px; background: #f1f4f7; }
-.item-fonte { width: 100%; padding-top: 14px; border-top: 1px solid var(--linha); color: #00579d; font-size: 15px; font-weight: 600; }
+.item-fonte { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 8px 10px; border-radius: 8px; background: #eaf2fa; color: #00579d; font-size: 14px; font-weight: 600; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 560px) {
   .item { padding: 18px; gap: 14px; }
   .filtros .ant-segmented { max-width: 100%; overflow-x: auto; }
   .grupo-topo a { margin-left: 0; }
+}
+
+@media (max-width: 380px) {
+  .ordenacao { align-items: stretch; flex-direction: column; }
+  .ordenacao-select { flex: none; width: 100%; }
+  .item-cabecalho { flex-wrap: wrap-reverse; }
+  .item-fonte { margin-left: auto; }
 }

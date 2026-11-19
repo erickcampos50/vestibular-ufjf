@@ -14,6 +14,22 @@ import './App.css';
 const MIN_LETRAS = 3;
 const LIMITE_EXIBICAO = 60;
 
+const PAGINAS_EDITAIS: Record<string, string> = {
+  'pism-2026': 'https://www2.ufjf.br/cdara/editais-de-reclassificacao/editais-de-reclassificacao/',
+  'sisu-2026': 'https://www2.ufjf.br/cdara/editais-de-reclassificacao-3/',
+  'sisu-mais-2026': 'https://www2.ufjf.br/cdara/editais-de-reclassificacao-4/',
+};
+
+const OPCOES_ORDEM = [
+  { value: 'processo', label: 'Processo seletivo' },
+  { value: 'nome', label: 'Nome: A a Z' },
+  { value: 'curso', label: 'Curso: A a Z' },
+  { value: 'campus', label: 'Campus: A a Z' },
+  { value: 'classificacao', label: 'Classificação: menor primeiro' },
+  { value: 'pontuacao', label: 'Pontuação: maior primeiro' },
+  { value: 'situacao', label: 'Convocados primeiro' },
+];
+
 const OPCOES_EDICAO = [
   { label: 'Todas', value: 'todas' },
   { label: 'PISM', value: 'pism-2026' },
@@ -46,6 +62,7 @@ function App() {
   const [edicao, setEdicao] = useState('todas');
   const [campus, setCampus] = useState('todos');
   const [cursos, setCursos] = useState<string[]>([]);
+  const [ordem, setOrdem] = useState('processo');
 
   useEffect(() => {
     let vivo = true;
@@ -102,20 +119,34 @@ function App() {
 
     const ordemEdicao = new Map((snapshot?.edicoes ?? []).map((e, i) => [e.id, i]));
 
-    return achados.sort(
-      (a, b) =>
-        (ordemEdicao.get(a.e) ?? 0) - (ordemEdicao.get(b.e) ?? 0) ||
-        b.cv - a.cv ||
-        a.c.localeCompare(b.c, 'pt-BR') ||
-        a.g.localeCompare(b.g, 'pt-BR') ||
-        (a.cl ?? 0) - (b.cl ?? 0),
-    );
-  }, [buscou, edicao, campus, cursos, indice, snapshot, tokens]);
+    const compararTexto = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
+    const desempate = (a: Candidato, b: Candidato) =>
+      compararTexto(a.n, b.n) || compararTexto(a.c, b.c) ||
+      compararTexto(a.ca, b.ca) || compararTexto(a.g, b.g) ||
+      (a.cl ?? Infinity) - (b.cl ?? Infinity);
+    return achados.sort((a, b) => {
+      let principal = 0;
+      switch (ordem) {
+        case 'nome': principal = compararTexto(a.n, b.n); break;
+        case 'curso': principal = compararTexto(a.c, b.c); break;
+        case 'campus': principal = compararTexto(a.ca, b.ca); break;
+        case 'classificacao': principal = (a.cl ?? Infinity) - (b.cl ?? Infinity); break;
+        case 'pontuacao': principal = (b.p ?? -Infinity) - (a.p ?? -Infinity); break;
+        case 'situacao': principal = b.cv - a.cv; break;
+        default:
+          principal = (ordemEdicao.get(a.e) ?? 0) - (ordemEdicao.get(b.e) ?? 0) ||
+            b.cv - a.cv || compararTexto(a.c, b.c) ||
+            compararTexto(a.g, b.g) || (a.cl ?? Infinity) - (b.cl ?? Infinity);
+      }
+      return principal || desempate(a, b);
+    });
+  }, [buscou, edicao, campus, cursos, indice, snapshot, tokens, ordem]);
 
   const visiveis = resultados.slice(0, LIMITE_EXIBICAO);
 
   /** Agrupa o que será exibido por edição, preservando a ordenação. */
   const grupos = useMemo(() => {
+    if (ordem !== 'processo') return [['ordenados', visiveis] as [string, Candidato[]]];
     const mapa = new Map<string, Candidato[]>();
     for (const candidato of visiveis) {
       const lista = mapa.get(candidato.e);
@@ -123,7 +154,7 @@ function App() {
       else mapa.set(candidato.e, [candidato]);
     }
     return [...mapa.entries()];
-  }, [visiveis]);
+  }, [visiveis, ordem]);
 
   return (
     <div className="pagina">
@@ -305,42 +336,59 @@ function App() {
                 )}
               </div>
 
+              <div className="ordenacao">
+                <label htmlFor="ordenar-resultados">Ordenar resultados</label>
+                <Select
+                  id="ordenar-resultados"
+                  size="large"
+                  value={ordem}
+                  onChange={setOrdem}
+                  options={OPCOES_ORDEM}
+                  className="ordenacao-select"
+                />
+                {ordem === 'classificacao' && (
+                  <p>A classificação é relativa à lista de cada curso e grupo.</p>
+                )}
+              </div>
+
               {grupos.map(([id, lista]) => {
                 const info = edicoes.get(id);
                 return (
                   <section className="grupo" key={id}>
                     <header className="grupo-topo">
-                      <h2>{info?.rotulo ?? id}</h2>
+                      <h2>{info?.rotulo ?? 'Resultados ordenados'}</h2>
                       <span className="grupo-contagem">
                         {plural(lista.length, 'registro', 'registros')}
                       </span>
-                      {info && (
-                        <a href={info.listaUrl} target="_blank" rel="noreferrer">
-                          lista oficial ↗
-                        </a>
-                      )}
                     </header>
 
                     <div className="itens">
                       {lista.map((c) => {
                         const data = fmtData(c.sd);
+                        const infoCandidato = edicoes.get(c.e);
                         const emEspera = c.s?.trim().toUpperCase() === 'EM ESPERA' || (!c.s && !c.cv);
                         const situacao = c.cv ? 'Convocado' : emEspera ? 'Em espera' : c.s || 'Situação não informada';
-                        const fonte = c.url || info?.listaUrl;
+                        const fonte = PAGINAS_EDITAIS[c.e] || infoCandidato?.listaUrl;
                         return (
                           <a className="item" href={fonte} target="_blank" rel="noreferrer"
                             key={`${c.e}|${c.c}|${c.t}|${c.ca}|${c.g}|${c.cl}|${c.n}`}>
-                            <div className="item-lado">
-                              <span className={`situacao ${c.cv ? 'situacao-convocado' : emEspera ? 'situacao-espera' : 'situacao-outra'}`}>
-                                {situacao}
-                              </span>
-                              <span className="item-data">
-                                {c.cv && data ? `Edital de ${data}` : c.cv ? 'Data do edital não informada' : 'Nenhum edital de convocação informado'}
+                            <div className="item-cabecalho">
+                              <div className="item-lado">
+                                <span className={`situacao ${c.cv ? 'situacao-convocado' : emEspera ? 'situacao-espera' : 'situacao-outra'}`}>
+                                  {situacao}
+                                </span>
+                                <span className="item-data">
+                                  {c.cv && data ? `Edital de ${data}` : c.cv ? 'Data do edital não informada' : 'Nenhum edital de convocação informado'}
+                                </span>
+                              </div>
+                              <span className="item-fonte">
+                                Ver Edital UFJF <ExportOutlined />
+                                <span className="sr-only"> (página de editais; abre em nova aba)</span>
                               </span>
                             </div>
                             <div className="item-corpo">
                               <h3 className="item-nome">{c.n}</h3>
-                              <p className="item-edicao">{info?.rotulo ?? id}</p>
+                              <p className="item-edicao">{infoCandidato?.rotulo ?? c.e}</p>
                               <p className="item-curso">
                                 {c.c} <span>·</span> {c.t} <span>·</span> {c.ca}
                               </p>
@@ -349,10 +397,6 @@ function App() {
                                 {c.cl != null && <span>{c.cl}º na lista</span>}
                                 {c.p != null && <span>{fmtPontos(c.p)} pontos</span>}
                               </div>
-                            </div>
-                            <div className="item-fonte">
-                              {c.url ? 'Consultar esta lista na fonte oficial' : 'Consultar a lista oficial da edição'} <ExportOutlined />
-                              <span className="sr-only"> (abre em nova aba)</span>
                             </div>
                           </a>
                         );

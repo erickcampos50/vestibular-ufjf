@@ -306,6 +306,7 @@ Regra: o id é sempre lido da página da edição, junto com o rótulo do grupo.
 | SiSU | `/sisu-2026/` | convocados 1º/2º semestre |
 | SiSU+ | `/graduacao/matricula-graduacao/sisu/sisu-2026/` | convocados SiSU+ |
 | Editais PISM | `/editais-de-reclassificacao/editais-de-reclassificacao/` | 13 PDFs, 1º e 2º semestre |
+| Editais SiSU | `/editais-de-reclassificacao-3/` | editais de reclassificação, linkados pela página SiSU 2026 |
 | Editais SiSU Mais | `/editais-de-reclassificacao-4/` | 4 PDFs (2º semestre) |
 | Vagas Ociosas | `/graduacao/vagas-ociosas-2/processo-seletivo-vagas-ociosas/` | 15 PDFs (edital, isenção, modalidades, resultados) |
 | PISM/SiSU Vagas Ociosas | `/pism-sisu-vagas-ociosas/` | resultados |
