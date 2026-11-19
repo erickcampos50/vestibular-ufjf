@@ -6,7 +6,7 @@
  * inclusive o CPF mascarado e o texto integral da situação — dados que o
  * protótipo não exibe (LGPD) e que só aumentam o payload.
  *
- * Saída: web/public/data/candidatos.json
+ * Saída: web/public/data/candidatos.json.gz
  *   - sem CPF
  *   - situação reduzida a { convocado, data }
  *
@@ -14,11 +14,15 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 const ORIGEM = path.resolve('data/candidatos.json');
-const DESTINO = path.resolve('web/public/data/candidatos.json');
+const DESTINO = path.resolve('web/public/data/candidatos.json.gz');
 
 const bruto = JSON.parse(fs.readFileSync(ORIGEM, 'utf8'));
+if (!Array.isArray(bruto.candidatos) || bruto.candidatos.length === 0) {
+  throw new Error('Snapshot vazio ou inválido; publicação cancelada.');
+}
 
 const candidatos = bruto.candidatos.map((c) => ({
   e: c.e,
@@ -44,9 +48,14 @@ const payload = {
 };
 
 fs.mkdirSync(path.dirname(DESTINO), { recursive: true });
-fs.writeFileSync(DESTINO, JSON.stringify(payload), 'utf8');
+const json = Buffer.from(JSON.stringify(payload), 'utf8');
+fs.writeFileSync(DESTINO, gzipSync(json, { level: 9 }));
+// Remove a saída não compactada das versões anteriores para que o Vite não a publique.
+const destinoAntigo = path.resolve('web/public/data/candidatos.json');
+if (fs.existsSync(destinoAntigo)) fs.unlinkSync(destinoAntigo);
 
 const kb = (n) => (n / 1024).toFixed(0) + ' KB';
 console.log('origem :', kb(fs.statSync(ORIGEM).size));
+console.log('json   :', kb(json.length));
 console.log('destino:', kb(fs.statSync(DESTINO).size));
 console.log('registros:', candidatos.length);
